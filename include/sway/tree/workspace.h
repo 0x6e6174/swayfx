@@ -11,6 +11,7 @@ struct sway_view;
 
 struct sway_workspace_state {
 	struct sway_container *fullscreen;
+	struct sway_container *maximized;
 	double x, y;
 	int width, height;
 	enum sway_container_layout layout;
@@ -27,10 +28,12 @@ struct sway_workspace {
 
 	struct {
 		struct wlr_scene_tree *tiling;
+		struct wlr_scene_tree *maximized;
 		struct wlr_scene_tree *fullscreen;
 	} layers;
 
 	struct sway_container *fullscreen;
+	struct sway_container *maximized;
 
 	char *name;
 	char *representation;

@@ -106,6 +106,7 @@ static void copy_workspace_state(struct sway_workspace *ws,
 	struct sway_workspace_state *state = &instruction->workspace_state;
 
 	state->fullscreen = ws->fullscreen;
+	state->maximized = ws->maximized;
 	state->x = ws->x;
 	state->y = ws->y;
 	state->width = ws->width;
@@ -634,6 +635,29 @@ static int container_get_gaps(struct sway_container *con) {
 	return ws->gaps_inner;
 }
 
+static void arrange_maximized(struct wlr_scene_tree *tree,
+		struct sway_container *mx, struct sway_workspace *ws,
+		int width, int height) {
+	struct wlr_box *area = &ws->output->usable_area;
+	// struct sway_output *output = ws->output;
+	struct wlr_scene_node *mx_node;
+
+	if (mx->view) {
+		mx_node = &mx->view->scene_tree->node;
+
+		// if we only care about the view, disable any decorations
+		wlr_scene_node_set_enabled(&mx->scene_tree->node, false);
+	} else {
+		mx_node = &mx->scene_tree->node;
+		arrange_container(mx, area->width, area->height, true, container_get_gaps(mx));
+	}
+
+	wlr_scene_node_reparent(mx_node, tree);
+	wlr_scene_node_lower_to_bottom(mx_node);
+	wlr_scene_node_set_position(mx_node, area->x, area->y);
+
+}
+
 static void arrange_fullscreen(struct wlr_scene_tree *tree,
 		struct sway_container *fs, struct sway_workspace *ws,
 		int width, int height) {
@@ -723,6 +747,7 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 		bool activated = output->current.active_workspace == child && output->wlr_output->enabled;
 
 		wlr_scene_node_reparent(&child->layers.tiling->node, output->layers.tiling);
+		wlr_scene_node_reparent(&child->layers.maximized->node, output->layers.maximized);
 		wlr_scene_node_reparent(&child->layers.fullscreen->node, output->layers.fullscreen);
 
 		for (int i = 0; i < child->current.floating->length; i++) {
@@ -732,23 +757,32 @@ static void arrange_output(struct sway_output *output, int width, int height) {
 		}
 
 		if (activated) {
-			struct sway_container *fs = child->current.fullscreen;
-			wlr_scene_node_set_enabled(&child->layers.tiling->node, !fs);
-			wlr_scene_node_set_enabled(&child->layers.fullscreen->node, fs);
+			struct sway_container *con = child->current.fullscreen ? child->current.fullscreen : child->current.maximized;
+			wlr_scene_node_set_enabled(&child->layers.tiling->node, !con);
+			wlr_scene_node_set_enabled(&child->layers.maximized->node, child->current.maximized);
+			wlr_scene_node_set_enabled(&child->layers.fullscreen->node, child->current.fullscreen);
 
-			wlr_scene_node_set_enabled(&output->layers.shell_background->node, !fs);
-			wlr_scene_node_set_enabled(&output->layers.shell_bottom->node, !fs);
-			wlr_scene_node_set_enabled(&output->layers.blur_layer->node, !fs);
-			wlr_scene_node_set_enabled(&output->layers.fullscreen->node, fs);
+			wlr_scene_node_set_enabled(&output->layers.shell_background->node, !con);
+			wlr_scene_node_set_enabled(&output->layers.shell_bottom->node, !child->current.fullscreen);
+			wlr_scene_node_set_enabled(&output->layers.blur_layer->node, !con);
+			wlr_scene_node_set_enabled(&output->layers.maximized->node, child->current.maximized);
+			wlr_scene_node_set_enabled(&output->layers.fullscreen->node, child->current.fullscreen);
 
-			if (fs) {
+
+			if (con) {
 				disable_workspace(child);
 
 				wlr_scene_rect_set_size(output->fullscreen_background, width, height);
 
 				arrange_workspace_floating(child);
-				arrange_fullscreen(child->layers.fullscreen, fs, child,
-					width, height);
+				
+				if (con->current.maximized) {
+					arrange_maximized(child->layers.maximized, con, child,
+					   width, height);
+				} else {
+					arrange_fullscreen(child->layers.fullscreen, con, child,
+						width, height);
+				}
 			} else {
 				struct wlr_box *area = &output->usable_area;
 				struct side_gaps *gaps = &child->current_gaps;
@@ -791,6 +825,7 @@ static void arrange_root(struct sway_root *root) {
 	wlr_scene_node_set_enabled(&root->layers.shell_bottom->node, !fs);
 	wlr_scene_node_set_enabled(&root->layers.blur_tree->node, !fs);
 	wlr_scene_node_set_enabled(&root->layers.tiling->node, !fs);
+	wlr_scene_node_set_enabled(&root->layers.maximized->node, !fs);
 	wlr_scene_node_set_enabled(&root->layers.floating->node, !fs);
 	wlr_scene_node_set_enabled(&root->layers.shell_top->node, !fs);
 	wlr_scene_node_set_enabled(&root->layers.fullscreen->node, !fs);
@@ -842,6 +877,7 @@ static void arrange_root(struct sway_root *root) {
 			wlr_scene_node_reparent(&output->layers.shell_bottom->node, root->layers.shell_bottom);
 			wlr_scene_node_reparent(&output->layers.blur_layer->node, root->layers.blur_tree);
 			wlr_scene_node_reparent(&output->layers.tiling->node, root->layers.tiling);
+			wlr_scene_node_reparent(&output->layers.maximized->node, root->layers.maximized);
 			wlr_scene_node_reparent(&output->layers.shell_top->node, root->layers.shell_top);
 			wlr_scene_node_reparent(&output->layers.shell_overlay->node, root->layers.shell_overlay);
 			wlr_scene_node_reparent(&output->layers.fullscreen->node, root->layers.fullscreen);
@@ -851,6 +887,7 @@ static void arrange_root(struct sway_root *root) {
 			wlr_scene_node_set_position(&output->layers.shell_bottom->node, output->lx, output->ly);
 			wlr_scene_node_set_position(&output->layers.blur_layer->node, output->lx, output->ly);
 			wlr_scene_node_set_position(&output->layers.tiling->node, output->lx, output->ly);
+			wlr_scene_node_set_position(&output->layers.maximized->node, output->lx, output->ly);
 			wlr_scene_node_set_position(&output->layers.fullscreen->node, output->lx, output->ly);
 			wlr_scene_node_set_position(&output->layers.shell_top->node, output->lx, output->ly);
 			wlr_scene_node_set_position(&output->layers.shell_overlay->node, output->lx, output->ly);

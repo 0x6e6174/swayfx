@@ -1,3 +1,4 @@
+#include "sway/tree/container.h"
 #include <assert.h>
 #include <drm_fourcc.h>
 #include <stdint.h>
@@ -596,6 +597,11 @@ void container_begin_destroy(struct sway_container *con) {
 	}
 	if (con->scratchpad && con->pending.fullscreen_mode == FULLSCREEN_GLOBAL) {
 		container_fullscreen_disable(con);
+		con->current.workspace->maximized = NULL;
+	}
+
+	if (con->pending.maximized || con->current.maximized) {
+		container_maximized_disable(con);
 	}
 
 	wl_signal_emit_mutable(&con->node.events.destroy, &con->node);
@@ -1307,6 +1313,19 @@ static void set_fullscreen(struct sway_container *con, bool enable) {
 	}
 }
 
+static void set_maximized(struct sway_container *con, bool enable) {
+	if (!con->view) {
+		return;
+	}
+	if (con->view->impl->set_maximized) {
+		con->view->impl->set_maximized(con->view, enable);
+		if (con->view->foreign_toplevel) {
+			wlr_foreign_toplevel_handle_v1_set_maximized(
+				con->view->foreign_toplevel, enable);
+		}
+	}
+}
+
 static void container_fullscreen_workspace(struct sway_container *con) {
 	if (!sway_assert(con->pending.fullscreen_mode == FULLSCREEN_NONE,
 				"Expected a non-fullscreen container")) {
@@ -1425,6 +1444,10 @@ void container_set_fullscreen(struct sway_container *con,
 		return;
 	}
 
+	if (con->pending.maximized) {
+		container_maximized_disable(con);
+	}
+
 	switch (mode) {
 	case FULLSCREEN_NONE:
 		container_fullscreen_disable(con);
@@ -1447,6 +1470,83 @@ void container_set_fullscreen(struct sway_container *con,
 		}
 		container_fullscreen_global(con);
 		break;
+	}
+}
+
+void container_maximized_disable(struct sway_container *con) {
+	if (!sway_assert(con->pending.maximized != false, 
+				  "Expected a maximized container")) {
+		return;
+	}
+	set_maximized(con, false);
+
+	if (container_is_floating(con)) {
+		con->pending.x = con->saved_x;
+		con->pending.y = con->saved_y;
+		con->pending.width = con->saved_width;
+		con->pending.height = con->saved_height;
+	}
+
+	con->pending.workspace->maximized = NULL;
+
+	if (container_is_floating(con) && (con->pending.width == 0 || con->pending.height == 0)) {
+		container_floating_resize_and_center(con);
+	}
+
+	con->pending.maximized = false;
+	container_end_mouse_operation(con);
+	ipc_event_window(con, "maximized");
+}
+
+void container_maximized_enable(struct sway_container *con){
+	if (!sway_assert(con->pending.fullscreen_mode == FULLSCREEN_NONE,
+			"Expected a non-fullscreen container")) {
+		return;
+	}
+	set_maximized(con, true);
+	con->pending.maximized = true;
+
+	con->saved_x = con->pending.x;
+	con->saved_y = con->pending.y;
+	con->saved_width = con->pending.width;
+	con->saved_height = con->pending.height;
+
+	if (con->pending.workspace) {
+		con->pending.workspace->maximized = con;
+		struct sway_seat *seat;
+		struct sway_workspace *focus_ws;
+		wl_list_for_each(seat, &server.input->seats, link) {
+			focus_ws = seat_get_focused_workspace(seat);
+			if (focus_ws == con->pending.workspace) {
+				seat_set_focus_container(seat, con);
+			} else {
+				struct sway_node *focus =
+					seat_get_focus_inactive(seat, &root->node);
+				seat_set_raw_focus(seat, &con->node);
+				seat_set_raw_focus(seat, focus);
+			}
+		}
+	}
+
+	container_end_mouse_operation(con);
+	ipc_event_window(con, "maximized");
+} 
+
+void container_set_maximized(struct sway_container *con, bool maximized) {
+	if (maximized) {
+		if (root->fullscreen_global) {
+			container_fullscreen_disable(root->fullscreen_global);
+		}
+
+		if (con->pending.workspace->fullscreen) {
+			container_fullscreen_disable(con->pending.workspace->fullscreen);
+		}
+
+		container_maximized_enable(con);
+	} else {
+		if (con->current.maximized) {
+			container_maximized_disable(con);
+		}
 	}
 }
 

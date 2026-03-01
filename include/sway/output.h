@@ -27,6 +27,7 @@ struct sway_output {
 		// Used for optimized blur. Everything exclusively below gets blurred
 		struct wlr_scene_optimized_blur *blur_layer;
 		struct wlr_scene_tree *tiling;
+		struct wlr_scene_tree *maximized;
 		struct wlr_scene_tree *fullscreen;
 		struct wlr_scene_tree *shell_top;
 		struct wlr_scene_tree *shell_overlay;

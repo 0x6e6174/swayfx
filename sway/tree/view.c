@@ -308,6 +308,14 @@ void view_autoconfigure(struct sway_view *view) {
 		return;
 	}
 
+	if (con->pending.maximized) {
+		con->pending.content_x = root->x;
+		con->pending.content_y = root->y;
+		con->pending.content_width = root->width;
+		con->pending.content_height = root->height;
+		return;
+	}
+
 	con->pending.border_top = con->pending.border_bottom = true;
 	con->pending.border_left = con->pending.border_right = true;
 	double y_offset = 0;

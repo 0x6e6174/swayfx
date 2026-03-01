@@ -314,6 +314,13 @@ void arrange_workspace(struct sway_workspace *workspace) {
 		fs->pending.width = output->width;
 		fs->pending.height = output->height;
 		arrange_container(fs);
+	} else if (workspace->maximized) {
+		struct sway_container *mx = workspace->maximized;
+		mx->pending.x = workspace->x;
+		mx->pending.y = workspace->y;
+		mx->pending.width = workspace->width;
+		mx->pending.height = workspace->height;
+		arrange_container(mx);
 	} else {
 		struct wlr_box box;
 		workspace_get_box(workspace, &box);

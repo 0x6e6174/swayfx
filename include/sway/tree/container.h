@@ -46,6 +46,7 @@ struct sway_container_state {
 	double width, height;
 
 	enum sway_fullscreen_mode fullscreen_mode;
+	bool maximized;
 
 	struct sway_workspace *workspace; // NULL when hidden in the scratchpad
 	struct sway_container *parent;    // NULL if container in root of workspace
@@ -286,6 +287,10 @@ void container_set_fullscreen(struct sway_container *con,
  * Convenience function.
  */
 void container_fullscreen_disable(struct sway_container *con);
+
+void container_set_maximized(struct sway_container *con, bool maximized);
+
+void container_maximized_disable(struct sway_container *con);
 
 /**
  * Walk up the container tree branch starting at the given container, and return

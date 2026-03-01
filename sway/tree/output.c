@@ -6,6 +6,7 @@
 #include "sway/layers.h"
 #include "sway/output.h"
 #include "sway/tree/arrange.h"
+#include "sway/tree/container.h"
 #include "sway/tree/workspace.h"
 #include "sway/server.h"
 #include "log.h"
@@ -90,12 +91,14 @@ static void destroy_scene_layers(struct sway_output *output) {
 	wlr_scene_node_destroy(&output->fullscreen_background->node);
 
 	scene_node_disown_children(output->layers.tiling);
+	scene_node_disown_children(output->layers.maximized);
 	scene_node_disown_children(output->layers.fullscreen);
 
 	wlr_scene_node_destroy(&output->layers.shell_background->node);
 	wlr_scene_node_destroy(&output->layers.shell_bottom->node);
 	wlr_scene_node_destroy(&output->layers.blur_layer->node);
 	wlr_scene_node_destroy(&output->layers.tiling->node);
+	wlr_scene_node_destroy(&output->layers.maximized->node);
 	wlr_scene_node_destroy(&output->layers.fullscreen->node);
 	wlr_scene_node_destroy(&output->layers.shell_top->node);
 	wlr_scene_node_destroy(&output->layers.shell_overlay->node);
@@ -112,6 +115,7 @@ struct sway_output *output_create(struct wlr_output *wlr_output) {
 	// Initialize with size 0x0, let the arrange_output set the size
 	output->layers.blur_layer = wlr_scene_optimized_blur_create(root->staging, 0, 0);
 	output->layers.tiling = alloc_scene_tree(root->staging, &failed);
+	output->layers.maximized = alloc_scene_tree(root->staging, &failed);
 	output->layers.fullscreen = alloc_scene_tree(root->staging, &failed);
 	output->layers.shell_top = alloc_scene_tree(root->staging, &failed);
 	output->layers.shell_overlay = alloc_scene_tree(root->staging, &failed);

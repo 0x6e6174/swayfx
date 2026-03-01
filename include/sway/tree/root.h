@@ -43,6 +43,7 @@ struct sway_root {
 		struct wlr_scene_tree *blur_tree;
 		struct wlr_scene_tree *tiling;
 		struct wlr_scene_tree *floating;
+		struct wlr_scene_tree *maximized;
 		struct wlr_scene_tree *shell_top;
 		struct wlr_scene_tree *fullscreen;
 		struct wlr_scene_tree *fullscreen_global;

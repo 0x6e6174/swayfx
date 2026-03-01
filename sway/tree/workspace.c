@@ -74,10 +74,12 @@ struct sway_workspace *workspace_create(struct sway_output *output,
 
 	bool failed = false;
 	ws->layers.tiling = alloc_scene_tree(root->staging, &failed);
+	ws->layers.maximized = alloc_scene_tree(root->staging, &failed);
 	ws->layers.fullscreen = alloc_scene_tree(root->staging, &failed);
 
 	if (failed) {
 		wlr_scene_node_destroy(&ws->layers.tiling->node);
+		wlr_scene_node_destroy(&ws->layers.maximized->node);
 		wlr_scene_node_destroy(&ws->layers.fullscreen->node);
 		free(ws);
 		return NULL;
@@ -144,8 +146,10 @@ void workspace_destroy(struct sway_workspace *workspace) {
 	}
 
 	scene_node_disown_children(workspace->layers.tiling);
+	scene_node_disown_children(workspace->layers.maximized);
 	scene_node_disown_children(workspace->layers.fullscreen);
 	wlr_scene_node_destroy(&workspace->layers.tiling->node);
+	wlr_scene_node_destroy(&workspace->layers.maximized->node);
 	wlr_scene_node_destroy(&workspace->layers.fullscreen->node);
 
 	free(workspace->name);
