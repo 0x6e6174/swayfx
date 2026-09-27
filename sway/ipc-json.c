@@ -2,6 +2,7 @@
 #include <float.h>
 #include <json.h>
 #include <libevdev/libevdev.h>
+#include <libinput.h>
 #include <stdio.h>
 #include <wlr/config.h>
 #include <wlr/types/wlr_content_type_v1.h>
@@ -1154,6 +1155,9 @@ static json_object *describe_libinput_device(struct libinput_device *device) {
 			break;
 		case LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN:
 			scroll_method = "on_button_down";
+			break;
+		case LIBINPUT_CONFIG_SCROLL_CIRCULAR:
+			_sway_assert(false, "we shouldn't get here probably");
 			break;
 		}
 		json_object_object_add(object, "scroll_method",

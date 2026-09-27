@@ -813,7 +813,8 @@ static void arrange_maximized(struct wlr_scene_tree *tree,
 		wlr_scene_node_set_enabled(&mx->scene_tree->node, false);
 	} else {
 		mx_node = &mx->scene_tree->node;
-		arrange_container(mx, area->width, area->height, true, container_get_gaps(mx));
+		arrange_container(mx, area->width, area->height, true, container_get_gaps(mx),
+						  true, 0);
 	}
 
 	wlr_scene_node_reparent(mx_node, tree);
