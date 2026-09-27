@@ -506,6 +506,9 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	wl_list_remove(&xwayland_view->commit.link);
 	wl_list_remove(&xwayland_view->surface_tree_destroy.link);
 
+	wlr_scene_node_destroy(&xwayland_view->image_capture_scene_surface->buffer->node);
+	xwayland_view->image_capture_scene_surface = NULL;
+
 	if (xwayland_view->surface_tree) {
 		wlr_scene_node_destroy(&xwayland_view->surface_tree->node);
 		xwayland_view->surface_tree = NULL;
@@ -545,6 +548,9 @@ static void handle_map(struct wl_listener *listener, void *data) {
 		wl_signal_add(&xwayland_view->surface_tree->node.events.destroy,
 			&xwayland_view->surface_tree_destroy);
 	}
+
+	xwayland_view->image_capture_scene_surface =
+		wlr_scene_surface_create(&xwayland_view->view.image_capture_scene->tree, xsurface->surface);
 
 	transaction_commit_dirty();
 }
@@ -714,6 +720,7 @@ static void handle_set_title(struct wl_listener *listener, void *data) {
 	}
 	view_update_title(view, false);
 	view_execute_criteria(view);
+	transaction_commit_dirty();
 }
 
 static void handle_set_class(struct wl_listener *listener, void *data) {
@@ -725,6 +732,7 @@ static void handle_set_class(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view_execute_criteria(view);
+	transaction_commit_dirty();
 }
 
 static void handle_set_role(struct wl_listener *listener, void *data) {
@@ -736,6 +744,7 @@ static void handle_set_role(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view_execute_criteria(view);
+	transaction_commit_dirty();
 }
 
 static void handle_set_startup_id(struct wl_listener *listener, void *data) {
@@ -772,6 +781,7 @@ static void handle_set_window_type(struct wl_listener *listener, void *data) {
 		return;
 	}
 	view_execute_criteria(view);
+	transaction_commit_dirty();
 }
 
 static void handle_set_hints(struct wl_listener *listener, void *data) {
@@ -947,3 +957,4 @@ void handle_xwayland_ready(struct wl_listener *listener, void *data) {
 
 	xcb_disconnect(xcb_conn);
 }
+
